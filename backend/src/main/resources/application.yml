@@ -2,11 +2,17 @@
   application:
     name: traveller-buyer-marketplace
 
+  # Profile-specific settings override these defaults
   datasource:
-    url: jdbc:postgresql://localhost:5432/marketplace
-    username: marketplace
-    password: marketplace
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${POSTGRES_DB:marketplace}
+    username: ${POSTGRES_USER:marketplace}
+    password: ${POSTGRES_PASSWORD:marketplace}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
 
   jpa:
     hibernate:
@@ -15,7 +21,7 @@
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+        format_sql: false
     show-sql: false
 
   flyway:
@@ -23,19 +29,104 @@
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 60000  # 60 seconds default TTL
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: marketplace-consumer-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.marketplace.infrastructure.kafka.events"
+
 server:
   port: 8080
   error:
     include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: Traveller-Buyer Marketplace
+    version: 1.0.0
+    description: Modular monolith backend for Traveller-Buyer Marketplace
 
 app:
   jwt:
     secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production-must-be-at-least-32-chars}
-    access-token-expiration-ms: 900000
-    refresh-token-expiration-ms: 604800000
+    access-token-expiration-ms: 900000       # 15 minutes
+    refresh-token-expiration-ms: 604800000   # 7 days
+
   delivery-code:
-    # Development default only. Set via env in real deployments.
     secret: ${DELIVERY_CODE_SECRET:dev-delivery-code-secret-change-me}
+    max-attempts: 5
+    attempt-window-minutes: 10
+
+  kafka:
+    enabled: ${KAFKA_ENABLED:true}
+
+  rate-limit:
+    login:
+      max-requests: 5
+      window-seconds: 60
+    register:
+      max-requests: 3
+      window-seconds: 60
+    delivery-generate:
+      max-requests: 3
+      window-seconds: 600
+    delivery-verify:
+      max-requests: 5
+      window-seconds: 600
+    general:
+      max-requests: 100
+      window-seconds: 60
+
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
 
 springdoc:
   api-docs:
@@ -44,8 +135,14 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+  show-actuator: false
 
 logging:
+  pattern:
+    console: "%date{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:-no-id}] %logger{36} - %msg%n"
+    file: "%date{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:-no-id}] %logger{36} - %msg%n"
   level:
-    com.marketplace: DEBUG
-    org.springframework.security: INFO
+    com.marketplace: INFO
+    org.springframework.security: WARN
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: WARN

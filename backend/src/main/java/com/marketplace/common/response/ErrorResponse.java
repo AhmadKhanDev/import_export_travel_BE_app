@@ -20,6 +20,8 @@ public class ErrorResponse {
     private boolean success;
     private String message;
     private String errorCode;
+    private String correlationId;
+    private String path;
     private List<FieldError> fieldErrors;
     private Map<String, Object> details;
     private Instant timestamp;

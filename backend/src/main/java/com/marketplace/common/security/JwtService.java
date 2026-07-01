@@ -80,6 +80,20 @@ public class JwtService {
         return accessTokenExpirationMs;
     }
 
+    /**
+     * Returns how many milliseconds remain until the token expires.
+     * Returns 0 if the token is already expired or unparseable.
+     */
+    public long getRemainingTtlMs(String token) {
+        try {
+            Date expiration = extractAllClaims(token).getExpiration();
+            long remaining = expiration.getTime() - System.currentTimeMillis();
+            return Math.max(0, remaining);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     private boolean isTokenExpired(String token) {
         return extractAllClaims(token).getExpiration().before(new Date());
     }
