@@ -3,6 +3,7 @@ package com.marketplace.infrastructure.ratelimit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketplace.common.response.ErrorResponse;
 import com.marketplace.infrastructure.redis.CacheKeyUtil;
+import com.marketplace.infrastructure.tracing.CorrelationIdUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,7 +40,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             applyRateLimit(path, ip, request);
         } catch (RateLimitExceededException ex) {
             log.warn("Rate limit exceeded: path={}, ip={}", path, ip);
-            sendRateLimitResponse(response);
+            sendRateLimitResponse(response, request);
             return;
         }
 
@@ -82,11 +83,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return email != null ? email.toLowerCase().trim() : null;
     }
 
-    private void sendRateLimitResponse(HttpServletResponse response) throws IOException {
+    private void sendRateLimitResponse(HttpServletResponse response, HttpServletRequest request) throws IOException {
         ErrorResponse body = ErrorResponse.builder()
                 .success(false)
                 .message("Too many requests. Please try again later.")
                 .errorCode("RATE_LIMIT_EXCEEDED")
+                .correlationId(CorrelationIdUtil.get())
+                .path(request.getRequestURI())
                 .timestamp(Instant.now())
                 .build();
 
