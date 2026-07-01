@@ -265,6 +265,50 @@ public class NotificationService {
                 NotificationReferenceType.PAYMENT, paymentId);
     }
 
+    @Transactional
+    public void notifyReviewReceived(UUID revieweeUserId, UUID reviewId) {
+        notifyUser(revieweeUserId, NotificationType.REVIEW_RECEIVED,
+                "New review received", "You received a new rating.",
+                NotificationReferenceType.BOOKING, reviewId);
+    }
+
+    @Transactional
+    public void notifyDisputeCreated(UUID bookingId, UUID disputeId, UUID otherParticipantId) {
+        List<UUID> adminIds = getAdminUserIds();
+        if (!adminIds.isEmpty()) {
+            notifyUsers(adminIds, NotificationType.DISPUTE_CREATED,
+                    "New dispute created",
+                    "A new dispute has been created for booking " + bookingId + ".",
+                    NotificationReferenceType.DISPUTE, disputeId);
+        } else {
+            log.warn("No admin users found to notify for dispute {}", disputeId);
+        }
+        notifyUser(otherParticipantId, NotificationType.DISPUTE_CREATED,
+                "Dispute created", "A dispute has been created for your booking.",
+                NotificationReferenceType.DISPUTE, disputeId);
+    }
+
+    @Transactional
+    public void notifyDisputeUnderReview(UUID buyerUserId, UUID travellerUserId, UUID disputeId) {
+        notifyUsers(List.of(buyerUserId, travellerUserId), NotificationType.DISPUTE_UNDER_REVIEW,
+                "Dispute under review", "Your dispute is now under admin review.",
+                NotificationReferenceType.DISPUTE, disputeId);
+    }
+
+    @Transactional
+    public void notifyDisputeResolved(UUID buyerUserId, UUID travellerUserId, UUID disputeId) {
+        notifyUsers(List.of(buyerUserId, travellerUserId), NotificationType.DISPUTE_RESOLVED,
+                "Dispute resolved", "Your dispute has been resolved by an admin.",
+                NotificationReferenceType.DISPUTE, disputeId);
+    }
+
+    @Transactional
+    public void notifyDisputeRejected(UUID buyerUserId, UUID travellerUserId, UUID disputeId) {
+        notifyUsers(List.of(buyerUserId, travellerUserId), NotificationType.DISPUTE_REJECTED,
+                "Dispute rejected", "Your dispute has been rejected by an admin.",
+                NotificationReferenceType.DISPUTE, disputeId);
+    }
+
     @Transactional(readOnly = true)
     public List<UUID> getAdminUserIds() {
         return userRepository.findByRole(Role.ADMIN).stream().map(User::getId).toList();
