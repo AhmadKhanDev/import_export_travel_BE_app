@@ -15,7 +15,10 @@ public final class PaymentSpecification {
         return Specification.where(byBookingId(filter.getBookingId()))
                 .and(byBuyerId(filter.getBuyerId()))
                 .and(byTravellerId(filter.getTravellerId()))
-                .and(byStatus(filter.getStatus()));
+                .and(byStatus(filter.getStatus()))
+                .and(byProviderPaymentId(filter.getProviderPaymentId()))
+                .and(createdFrom(filter.getCreatedFrom()))
+                .and(createdTo(filter.getCreatedTo()));
     }
 
     public static Specification<Payment> forParticipant(UUID userId, PaymentFilter filter) {
@@ -44,5 +47,22 @@ public final class PaymentSpecification {
     private static Specification<Payment> byStatus(com.marketplace.payment.entity.PaymentStatus status) {
         if (status == null) return null;
         return (root, query, cb) -> cb.equal(root.get("status"), status);
+    }
+
+    private static Specification<Payment> byProviderPaymentId(String providerPaymentId) {
+        if (providerPaymentId == null || providerPaymentId.isBlank()) {
+            return null;
+        }
+        return (root, query, cb) -> cb.equal(root.get("providerPaymentId"), providerPaymentId.trim());
+    }
+
+    private static Specification<Payment> createdFrom(java.time.Instant createdFrom) {
+        if (createdFrom == null) return null;
+        return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), createdFrom);
+    }
+
+    private static Specification<Payment> createdTo(java.time.Instant createdTo) {
+        if (createdTo == null) return null;
+        return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), createdTo);
     }
 }

@@ -12,4 +12,8 @@ public interface TravellerTripRepository extends JpaRepository<TravellerTrip, UU
 
     List<TravellerTrip> findByStatusAndSourceCountryIgnoreCaseAndDestinationCountryIgnoreCase(
             TravellerTripStatus status, String sourceCountry, String destinationCountry);
+
+    long countByStatus(TravellerTripStatus status);
+
+    long countByTraveller_Id(UUID travellerId);
 }

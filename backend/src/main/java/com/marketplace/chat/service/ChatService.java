@@ -23,6 +23,8 @@ import com.marketplace.common.exception.InvalidStatusException;
 import com.marketplace.common.exception.OwnershipException;
 import com.marketplace.common.exception.ResourceNotFoundException;
 import com.marketplace.common.security.UserPrincipal;
+import com.marketplace.common.audit.AuditAction;
+import com.marketplace.common.audit.service.AuditLogService;
 import com.marketplace.notification.service.NotificationService;
 import com.marketplace.user.entity.Role;
 import com.marketplace.user.entity.User;
@@ -59,6 +61,7 @@ public class ChatService {
     private final UserRepository userRepository;
     private final ChatMapper chatMapper;
     private final NotificationService notificationService;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public ChatRoomResponse createOrGetRoom(UUID bookingId, UUID userId) {
@@ -158,6 +161,8 @@ public class ChatService {
         room.setStatus(ChatRoomStatus.CLOSED);
         room = chatRoomRepository.save(room);
         saveSystemMessage(room, "Chat room has been closed by an administrator.");
+        auditLogService.logAdminAction(AuditAction.ADMIN_CHAT_CLOSED, "CHAT_ROOM", roomId,
+                "bookingId=" + room.getBooking().getId());
         log.info("Chat room closed: roomId={}, bookingId={}", roomId, room.getBooking().getId());
         return toRoomResponse(room, null);
     }

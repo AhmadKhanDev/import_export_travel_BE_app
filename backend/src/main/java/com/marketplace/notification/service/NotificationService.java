@@ -3,6 +3,8 @@ package com.marketplace.notification.service;
 import com.marketplace.common.exception.OwnershipException;
 import com.marketplace.common.exception.ResourceNotFoundException;
 import com.marketplace.common.security.UserPrincipal;
+import com.marketplace.common.audit.AuditAction;
+import com.marketplace.common.audit.service.AuditLogService;
 import com.marketplace.notification.dto.AdminSendNotificationRequest;
 import com.marketplace.notification.dto.CreateNotificationCommand;
 import com.marketplace.notification.dto.NotificationFilter;
@@ -44,6 +46,7 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final NotificationProviderFactory notificationProviderFactory;
     private final NotificationMapper notificationMapper;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public List<NotificationResponse> createNotification(CreateNotificationCommand command) {
@@ -84,7 +87,7 @@ public class NotificationService {
 
     @Transactional
     public NotificationResponse sendManual(AdminSendNotificationRequest request) {
-        return createNotification(CreateNotificationCommand.builder()
+        NotificationResponse response = createNotification(CreateNotificationCommand.builder()
                 .userId(request.getUserId())
                 .notificationType(request.getNotificationType())
                 .title(request.getTitle())
@@ -93,6 +96,9 @@ public class NotificationService {
                 .referenceType(request.getReferenceType())
                 .referenceId(request.getReferenceId())
                 .build()).get(0);
+        auditLogService.logAdminAction(AuditAction.ADMIN_NOTIFICATION_SENT, "NOTIFICATION", response.getId(),
+                "userId=" + request.getUserId());
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -263,6 +269,12 @@ public class NotificationService {
         notifyUsers(List.of(buyerUserId, travellerUserId), NotificationType.PAYMENT_REFUNDED,
                 "Payment refunded", "Payment has been refunded.",
                 NotificationReferenceType.PAYMENT, paymentId);
+    }
+
+    @Transactional
+    public void notifyAccountStatusChanged(UUID userId, String title, String message) {
+        notifyUser(userId, NotificationType.SYSTEM_ALERT, title, message,
+                NotificationReferenceType.USER, userId);
     }
 
     @Transactional

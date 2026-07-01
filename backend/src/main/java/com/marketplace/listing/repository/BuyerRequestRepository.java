@@ -12,4 +12,8 @@ public interface BuyerRequestRepository extends JpaRepository<BuyerRequest, UUID
 
     List<BuyerRequest> findByStatusAndSourceCountryIgnoreCaseAndDestinationCountryIgnoreCase(
             BuyerRequestStatus status, String sourceCountry, String destinationCountry);
+
+    long countByStatus(BuyerRequestStatus status);
+
+    long countByBuyer_Id(UUID buyerId);
 }

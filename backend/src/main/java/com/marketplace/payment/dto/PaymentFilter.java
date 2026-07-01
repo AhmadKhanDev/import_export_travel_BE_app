@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -18,4 +19,7 @@ public class PaymentFilter {
     private UUID buyerId;
     private UUID travellerId;
     private PaymentStatus status;
+    private String providerPaymentId;
+    private Instant createdFrom;
+    private Instant createdTo;
 }

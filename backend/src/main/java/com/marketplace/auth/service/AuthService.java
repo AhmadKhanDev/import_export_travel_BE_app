@@ -45,7 +45,7 @@ public class AuthService {
         }
 
         String email = request.getEmail().toLowerCase().trim();
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new ConflictException("Email is already registered");
         }
 

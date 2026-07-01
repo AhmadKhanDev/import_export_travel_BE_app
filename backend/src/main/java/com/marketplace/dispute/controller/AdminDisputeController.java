@@ -60,6 +60,12 @@ public class AdminDisputeController {
         return ResponseEntity.ok(ApiResponse.success(PagedResponse.from(page)));
     }
 
+    @GetMapping("/{id}")
+    @Operation(summary = "Get dispute details")
+    public ResponseEntity<ApiResponse<AdminDisputeResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(disputeService.adminGetById(id)));
+    }
+
     @PostMapping("/{id}/mark-under-review")
     @Operation(summary = "Mark dispute as under review")
     public ResponseEntity<ApiResponse<DisputeResponse>> markUnderReview(@PathVariable UUID id) {

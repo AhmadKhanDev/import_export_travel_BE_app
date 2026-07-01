@@ -16,4 +16,6 @@ public interface DisputeRepository extends JpaRepository<Dispute, UUID>, JpaSpec
     boolean existsByBooking_IdAndStatusIn(UUID bookingId, Collection<DisputeStatus> statuses);
 
     List<Dispute> findByRaisedByUser_IdOrderByCreatedAtDesc(UUID raisedByUserId);
+
+    long countByStatus(DisputeStatus status);
 }

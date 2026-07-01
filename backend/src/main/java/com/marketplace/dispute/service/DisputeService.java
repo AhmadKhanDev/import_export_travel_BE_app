@@ -21,6 +21,8 @@ import com.marketplace.dispute.mapper.DisputeMapper;
 import com.marketplace.dispute.repository.DisputeRepository;
 import com.marketplace.dispute.repository.DisputeSpecification;
 import com.marketplace.chat.service.ChatService;
+import com.marketplace.common.audit.AuditAction;
+import com.marketplace.common.audit.service.AuditLogService;
 import com.marketplace.notification.service.NotificationService;
 import com.marketplace.payment.entity.Payment;
 import com.marketplace.payment.entity.PaymentStatus;
@@ -66,6 +68,7 @@ public class DisputeService {
     private final DisputeMapper disputeMapper;
     private final NotificationService notificationService;
     private final ChatService chatService;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public DisputeResponse createDispute(CreateDisputeRequest request, UserPrincipal principal) {
@@ -129,6 +132,11 @@ public class DisputeService {
     }
 
     @Transactional(readOnly = true)
+    public AdminDisputeResponse adminGetById(UUID disputeId) {
+        return disputeMapper.toAdminResponse(getDispute(disputeId));
+    }
+
+    @Transactional(readOnly = true)
     public Page<AdminDisputeResponse> adminSearch(DisputeFilter filter, Pageable pageable) {
         return disputeRepository.findAll(DisputeSpecification.withFilter(filter), pageable)
                 .map(disputeMapper::toAdminResponse);
@@ -150,6 +158,7 @@ public class DisputeService {
         Booking booking = dispute.getBooking();
         notificationService.notifyDisputeUnderReview(
                 booking.getBuyer().getId(), booking.getTraveller().getId(), dispute.getId());
+        auditLogService.logAdminAction(AuditAction.ADMIN_DISPUTE_UNDER_REVIEW, "DISPUTE", disputeId, null);
 
         return disputeMapper.toResponse(dispute);
     }
@@ -176,6 +185,8 @@ public class DisputeService {
         Booking booking = dispute.getBooking();
         notificationService.notifyDisputeResolved(
                 booking.getBuyer().getId(), booking.getTraveller().getId(), dispute.getId());
+        auditLogService.logAdminAction(AuditAction.ADMIN_DISPUTE_RESOLVED, "DISPUTE", disputeId,
+                "resolutionNote=" + request.getResolutionNote().trim());
 
         return disputeMapper.toResponse(dispute);
     }
@@ -200,6 +211,8 @@ public class DisputeService {
         Booking booking = dispute.getBooking();
         notificationService.notifyDisputeRejected(
                 booking.getBuyer().getId(), booking.getTraveller().getId(), dispute.getId());
+        auditLogService.logAdminAction(AuditAction.ADMIN_DISPUTE_REJECTED, "DISPUTE", disputeId,
+                "resolutionNote=" + request.getResolutionNote().trim());
 
         return disputeMapper.toResponse(dispute);
     }
