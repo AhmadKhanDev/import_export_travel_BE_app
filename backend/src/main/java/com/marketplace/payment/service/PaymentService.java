@@ -9,6 +9,7 @@ import com.marketplace.common.exception.InvalidStatusException;
 import com.marketplace.common.exception.OwnershipException;
 import com.marketplace.common.exception.ResourceNotFoundException;
 import com.marketplace.common.security.UserPrincipal;
+import com.marketplace.notification.service.NotificationService;
 import com.marketplace.offer.entity.Offer;
 import com.marketplace.payment.dto.AdminPaymentResponse;
 import com.marketplace.payment.dto.PayRequest;
@@ -60,6 +61,7 @@ public class PaymentService {
     private final BookingRepository bookingRepository;
     private final PaymentProviderFactory paymentProviderFactory;
     private final PaymentMapper paymentMapper;
+    private final NotificationService notificationService;
 
     @Transactional
     public PaymentResponse pay(UUID bookingId, UUID buyerId, PayRequest payRequest, String idempotencyKey) {
@@ -191,8 +193,8 @@ public class PaymentService {
         bookingRepository.save(booking);
 
         logPaymentHeld(payment);
+        notificationService.notifyPaymentHeld(payment.getBuyer().getId(), payment.getTraveller().getId(), payment.getId());
         // TODO: audit log PAYMENT_HELD when audit module is available
-        // TODO: create in-app notifications when notification module is available
 
         return payment;
     }
@@ -234,7 +236,8 @@ public class PaymentService {
         bookingRepository.save(booking);
 
         log.info("Payment released: paymentId={}, bookingId={}", payment.getId(), booking.getId());
-        // TODO: audit log PAYMENT_RELEASED and notify buyer/traveller
+        notificationService.notifyPaymentReleased(payment.getBuyer().getId(), payment.getTraveller().getId(), payment.getId());
+        // TODO: audit log PAYMENT_RELEASED
 
         return payment;
     }
@@ -273,7 +276,8 @@ public class PaymentService {
         bookingRepository.save(booking);
 
         log.info("Payment refunded: paymentId={}, bookingId={}, reason={}", payment.getId(), booking.getId(), reason);
-        // TODO: audit log PAYMENT_REFUNDED and notify buyer/traveller
+        notificationService.notifyPaymentRefunded(payment.getBuyer().getId(), payment.getTraveller().getId(), payment.getId());
+        // TODO: audit log PAYMENT_REFUNDED
 
         return payment;
     }
@@ -344,7 +348,5 @@ public class PaymentService {
         log.info("Payment held in escrow: paymentId={}, bookingId={}, buyerId={}, travellerId={}, amount={} {}",
                 payment.getId(), payment.getBooking().getId(), payment.getBuyer().getId(),
                 payment.getTraveller().getId(), payment.getAmount(), payment.getCurrency());
-        log.info("Notification placeholder: payment held - notify buyer {} and traveller {}",
-                payment.getBuyer().getEmail(), payment.getTraveller().getEmail());
     }
 }

@@ -7,6 +7,7 @@ import com.marketplace.common.exception.BadRequestException;
 import com.marketplace.common.exception.OwnershipException;
 import com.marketplace.common.exception.ResourceNotFoundException;
 import com.marketplace.common.security.UserPrincipal;
+import com.marketplace.notification.service.NotificationService;
 import com.marketplace.payment.dto.PaymentResponse;
 import com.marketplace.payment.entity.PaymentStatus;
 import com.marketplace.payment.repository.PaymentRepository;
@@ -15,9 +16,9 @@ import com.marketplace.user.entity.Role;
 import com.marketplace.verification.dto.DeliveryCodeStatusResponse;
 import com.marketplace.verification.dto.DeliveryVerificationResultResponse;
 import com.marketplace.verification.dto.GenerateDeliveryCodeResponse;
-import com.marketplace.verification.mapper.DeliveryVerificationMapper;
 import com.marketplace.verification.entity.DeliveryCodeStatus;
 import com.marketplace.verification.entity.DeliveryVerificationCode;
+import com.marketplace.verification.mapper.DeliveryVerificationMapper;
 import com.marketplace.verification.repository.DeliveryVerificationCodeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +60,7 @@ public class DeliveryVerificationService {
     private final DeliveryVerificationCodeRepository codeRepository;
     private final DeliveryCodeHashService hashService;
     private final DeliveryVerificationMapper mapper;
+    private final NotificationService notificationService;
 
     @Transactional
     public GenerateDeliveryCodeResponse generateCode(UUID bookingId, UUID buyerId) {
@@ -85,6 +87,7 @@ public class DeliveryVerificationService {
         entity = codeRepository.save(entity);
 
         log.info("Delivery verification code generated for bookingId={}, buyerId={}", bookingId, buyerId);
+        notificationService.notifyDeliveryCodeGenerated(buyerId, bookingId, code);
 
         return GenerateDeliveryCodeResponse.builder()
                 .id(entity.getId())
@@ -134,6 +137,7 @@ public class DeliveryVerificationService {
         PaymentResponse paymentResponse = paymentService.releasePaymentForVerifiedDelivery(bookingId);
 
         log.info("Delivery verification succeeded for bookingId={}, travellerId={}", bookingId, travellerId);
+        notificationService.notifyDeliveryVerified(booking.getBuyer().getId(), booking.getTraveller().getId(), bookingId);
 
         return DeliveryVerificationResultResponse.builder()
                 .bookingId(bookingId)

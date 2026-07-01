@@ -16,6 +16,9 @@ import com.marketplace.common.security.UserPrincipal;
 import com.marketplace.listing.entity.BuyerRequest;
 import com.marketplace.listing.entity.BuyerRequestStatus;
 import com.marketplace.listing.repository.BuyerRequestRepository;
+import com.marketplace.notification.entity.NotificationReferenceType;
+import com.marketplace.notification.entity.NotificationType;
+import com.marketplace.notification.service.NotificationService;
 import com.marketplace.user.entity.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -49,6 +53,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final BuyerRequestRepository buyerRequestRepository;
     private final BookingMapper bookingMapper;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public Page<BookingResponse> findMyBookings(UUID userId, BookingStatus status, Pageable pageable) {
@@ -82,6 +87,13 @@ public class BookingService {
         booking = bookingRepository.save(booking);
 
         revertBuyerRequestIfAppropriate(booking.getBuyerRequest());
+        notificationService.notifyUsers(
+                List.of(booking.getBuyer().getId(), booking.getTraveller().getId()),
+                NotificationType.SYSTEM_ALERT,
+                "Booking cancelled",
+                "A booking has been cancelled.",
+                NotificationReferenceType.BOOKING,
+                booking.getId());
 
         return bookingMapper.toResponse(booking);
     }
@@ -99,7 +111,15 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.IN_TRANSIT);
-        return bookingMapper.toResponse(bookingRepository.save(booking));
+        booking = bookingRepository.save(booking);
+        notificationService.notifyUser(
+                booking.getBuyer().getId(),
+                NotificationType.SYSTEM_ALERT,
+                "Booking in transit",
+                "Your booking is now in transit.",
+                NotificationReferenceType.BOOKING,
+                booking.getId());
+        return bookingMapper.toResponse(booking);
     }
 
     @Transactional
@@ -113,7 +133,15 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.DELIVERED_PENDING_VERIFICATION);
         booking.setDeliveredAt(Instant.now());
-        return bookingMapper.toResponse(bookingRepository.save(booking));
+        booking = bookingRepository.save(booking);
+        notificationService.notifyUser(
+                booking.getBuyer().getId(),
+                NotificationType.SYSTEM_ALERT,
+                "Delivery pending verification",
+                "Traveller marked your booking as delivered. Generate or share the verification code.",
+                NotificationReferenceType.BOOKING,
+                booking.getId());
+        return bookingMapper.toResponse(booking);
     }
 
     @Transactional(readOnly = true)

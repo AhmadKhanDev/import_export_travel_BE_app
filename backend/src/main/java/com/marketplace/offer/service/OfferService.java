@@ -21,6 +21,7 @@ import com.marketplace.listing.repository.TravellerTripRepository;
 import com.marketplace.matching.entity.Match;
 import com.marketplace.matching.entity.MatchStatus;
 import com.marketplace.matching.repository.MatchRepository;
+import com.marketplace.notification.service.NotificationService;
 import com.marketplace.offer.dto.AdminOfferResponse;
 import com.marketplace.offer.dto.CreateOfferRequest;
 import com.marketplace.offer.dto.OfferFilter;
@@ -64,6 +65,7 @@ public class OfferService {
     private final KycService kycService;
     private final OfferMapper offerMapper;
     private final BookingMapper bookingMapper;
+    private final NotificationService notificationService;
 
     @Transactional
     public OfferResponse create(CreateOfferRequest request, UUID travellerId) {
@@ -122,6 +124,7 @@ public class OfferService {
             buyerRequestRepository.save(buyerRequest);
         }
 
+        notificationService.notifyOfferSent(buyerRequest.getBuyer().getId(), offer.getId());
         return offerMapper.toResponse(offer);
     }
 
@@ -193,6 +196,9 @@ public class OfferService {
 
         rejectOtherSentOffers(buyerRequest.getId(), offer.getId());
 
+        notificationService.notifyOfferAccepted(offer.getTraveller().getId(), offer.getId());
+        notificationService.notifyBookingCreated(offer.getBuyer().getId(), offer.getTraveller().getId(), booking.getId());
+
         return bookingMapper.toResponse(booking);
     }
 
@@ -202,7 +208,9 @@ public class OfferService {
         assertBuyerOwnsRequest(offer, buyerId);
         assertOfferSent(offer);
         offer.setStatus(OfferStatus.REJECTED);
-        return offerMapper.toResponse(offerRepository.save(offer));
+        offer = offerRepository.save(offer);
+        notificationService.notifyOfferRejected(offer.getTraveller().getId(), offer.getId());
+        return offerMapper.toResponse(offer);
     }
 
     @Transactional
@@ -213,7 +221,9 @@ public class OfferService {
         }
         assertOfferSent(offer);
         offer.setStatus(OfferStatus.CANCELLED);
-        return offerMapper.toResponse(offerRepository.save(offer));
+        offer = offerRepository.save(offer);
+        notificationService.notifyOfferCancelled(offer.getBuyer().getId(), offer.getId());
+        return offerMapper.toResponse(offer);
     }
 
     @Transactional(readOnly = true)
