@@ -1,4 +1,4 @@
-spring:
+﻿spring:
   application:
     name: traveller-buyer-marketplace
 
@@ -33,6 +33,9 @@ app:
     secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production-must-be-at-least-32-chars}
     access-token-expiration-ms: 900000
     refresh-token-expiration-ms: 604800000
+  delivery-code:
+    # Development default only. Set via env in real deployments.
+    secret: ${DELIVERY_CODE_SECRET:dev-delivery-code-secret-change-me}
 
 springdoc:
   api-docs:
