@@ -45,6 +45,7 @@ public class TravellerTripService {
 
     @Transactional
     public TravellerTripResponse create(CreateTravellerTripRequest request, UUID travellerId) {
+        kycService.requireApprovedKyc(travellerId);
         User traveller = getUser(travellerId);
         TravellerTrip entity = listingMapper.toTravellerTrip(request, traveller);
         return listingMapper.toTravellerTripResponse(travellerTripRepository.save(entity));
