@@ -1,5 +1,6 @@
 package com.marketplace.common.security;
 
+import com.marketplace.user.entity.Role;
 import com.marketplace.user.entity.User;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,6 +18,7 @@ public class UserPrincipal implements UserDetails {
     private final String email;
     private final String password;
     private final String fullName;
+    private final Role role;
     private final Collection<? extends GrantedAuthority> authorities;
     private final boolean enabled;
 
@@ -25,6 +27,7 @@ public class UserPrincipal implements UserDetails {
         this.email = user.getEmail();
         this.password = user.getPasswordHash();
         this.fullName = user.getFullName();
+        this.role = user.getRole();
         this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
         this.enabled = user.getAccountStatus().name().equals("ACTIVE");
     }

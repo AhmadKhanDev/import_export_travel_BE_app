@@ -35,6 +35,21 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), "CONFLICT", null);
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException ex) {
+        return buildError(HttpStatus.FORBIDDEN, ex.getMessage(), "FORBIDDEN", null);
+    }
+
+    @ExceptionHandler(OwnershipException.class)
+    public ResponseEntity<ErrorResponse> handleOwnership(OwnershipException ex) {
+        return buildError(HttpStatus.FORBIDDEN, ex.getMessage(), "OWNERSHIP_VIOLATION", null);
+    }
+
+    @ExceptionHandler(InvalidStatusException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidStatus(InvalidStatusException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), "INVALID_STATUS", null);
+    }
+
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex) {
         return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), "UNAUTHORIZED", null);
