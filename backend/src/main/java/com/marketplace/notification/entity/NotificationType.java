@@ -20,5 +20,6 @@ public enum NotificationType {
     DISPUTE_RESOLVED,
     DISPUTE_REJECTED,
     REVIEW_RECEIVED,
+    CHAT_MESSAGE,
     SYSTEM_ALERT
 }

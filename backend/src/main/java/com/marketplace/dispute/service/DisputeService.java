@@ -20,6 +20,7 @@ import com.marketplace.dispute.entity.DisputeStatus;
 import com.marketplace.dispute.mapper.DisputeMapper;
 import com.marketplace.dispute.repository.DisputeRepository;
 import com.marketplace.dispute.repository.DisputeSpecification;
+import com.marketplace.chat.service.ChatService;
 import com.marketplace.notification.service.NotificationService;
 import com.marketplace.payment.entity.Payment;
 import com.marketplace.payment.entity.PaymentStatus;
@@ -64,6 +65,7 @@ public class DisputeService {
     private final UserRepository userRepository;
     private final DisputeMapper disputeMapper;
     private final NotificationService notificationService;
+    private final ChatService chatService;
 
     @Transactional
     public DisputeResponse createDispute(CreateDisputeRequest request, UserPrincipal principal) {
@@ -107,6 +109,7 @@ public class DisputeService {
 
         notificationService.notifyDisputeCreated(
                 booking.getId(), dispute.getId(), otherParticipantId);
+        chatService.createSystemMessage(booking.getId(), "A dispute has been created for this booking.");
 
         return disputeMapper.toResponse(dispute);
     }

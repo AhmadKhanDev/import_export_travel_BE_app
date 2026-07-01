@@ -3,6 +3,7 @@ package com.marketplace.payment.service;
 import com.marketplace.booking.entity.Booking;
 import com.marketplace.booking.entity.BookingStatus;
 import com.marketplace.booking.repository.BookingRepository;
+import com.marketplace.chat.service.ChatService;
 import com.marketplace.common.exception.BadRequestException;
 import com.marketplace.common.exception.ConflictException;
 import com.marketplace.common.exception.InvalidStatusException;
@@ -62,6 +63,7 @@ public class PaymentService {
     private final PaymentProviderFactory paymentProviderFactory;
     private final PaymentMapper paymentMapper;
     private final NotificationService notificationService;
+    private final ChatService chatService;
 
     @Transactional
     public PaymentResponse pay(UUID bookingId, UUID buyerId, PayRequest payRequest, String idempotencyKey) {
@@ -194,6 +196,7 @@ public class PaymentService {
 
         logPaymentHeld(payment);
         notificationService.notifyPaymentHeld(payment.getBuyer().getId(), payment.getTraveller().getId(), payment.getId());
+        chatService.createSystemMessage(booking.getId(), "Payment is held safely by the platform.");
         // TODO: audit log PAYMENT_HELD when audit module is available
 
         return payment;

@@ -3,6 +3,7 @@ package com.marketplace.verification.service;
 import com.marketplace.booking.entity.Booking;
 import com.marketplace.booking.entity.BookingStatus;
 import com.marketplace.booking.repository.BookingRepository;
+import com.marketplace.chat.service.ChatService;
 import com.marketplace.common.exception.BadRequestException;
 import com.marketplace.common.exception.OwnershipException;
 import com.marketplace.common.exception.ResourceNotFoundException;
@@ -61,6 +62,7 @@ public class DeliveryVerificationService {
     private final DeliveryCodeHashService hashService;
     private final DeliveryVerificationMapper mapper;
     private final NotificationService notificationService;
+    private final ChatService chatService;
 
     @Transactional
     public GenerateDeliveryCodeResponse generateCode(UUID bookingId, UUID buyerId) {
@@ -138,6 +140,7 @@ public class DeliveryVerificationService {
 
         log.info("Delivery verification succeeded for bookingId={}, travellerId={}", bookingId, travellerId);
         notificationService.notifyDeliveryVerified(booking.getBuyer().getId(), booking.getTraveller().getId(), bookingId);
+        chatService.createSystemMessage(bookingId, "Delivery verified and payment released.");
 
         return DeliveryVerificationResultResponse.builder()
                 .bookingId(bookingId)

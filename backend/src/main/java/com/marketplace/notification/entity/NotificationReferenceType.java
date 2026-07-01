@@ -10,5 +10,6 @@ public enum NotificationReferenceType {
     BOOKING,
     PAYMENT,
     DELIVERY_CODE,
-    DISPUTE
+    DISPUTE,
+    CHAT
 }

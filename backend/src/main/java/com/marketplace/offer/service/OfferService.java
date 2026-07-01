@@ -5,6 +5,7 @@ import com.marketplace.booking.entity.Booking;
 import com.marketplace.booking.entity.BookingStatus;
 import com.marketplace.booking.mapper.BookingMapper;
 import com.marketplace.booking.repository.BookingRepository;
+import com.marketplace.chat.service.ChatService;
 import com.marketplace.common.exception.BadRequestException;
 import com.marketplace.common.exception.ConflictException;
 import com.marketplace.common.exception.InvalidStatusException;
@@ -66,6 +67,7 @@ public class OfferService {
     private final OfferMapper offerMapper;
     private final BookingMapper bookingMapper;
     private final NotificationService notificationService;
+    private final ChatService chatService;
 
     @Transactional
     public OfferResponse create(CreateOfferRequest request, UUID travellerId) {
@@ -198,6 +200,8 @@ public class OfferService {
 
         notificationService.notifyOfferAccepted(offer.getTraveller().getId(), offer.getId());
         notificationService.notifyBookingCreated(offer.getBuyer().getId(), offer.getTraveller().getId(), booking.getId());
+        chatService.createSystemMessage(booking.getId(),
+                "Booking created. You can now discuss delivery details here.");
 
         return bookingMapper.toResponse(booking);
     }

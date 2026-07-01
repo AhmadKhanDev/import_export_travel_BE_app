@@ -266,6 +266,13 @@ public class NotificationService {
     }
 
     @Transactional
+    public void notifyNewChatMessage(UUID receiverUserId, String senderName, UUID bookingId, UUID roomId) {
+        notifyUser(receiverUserId, NotificationType.CHAT_MESSAGE,
+                "New message", senderName + " sent you a message.",
+                NotificationReferenceType.CHAT, roomId);
+    }
+
+    @Transactional
     public void notifyReviewReceived(UUID revieweeUserId, UUID reviewId) {
         notifyUser(revieweeUserId, NotificationType.REVIEW_RECEIVED,
                 "New review received", "You received a new rating.",
