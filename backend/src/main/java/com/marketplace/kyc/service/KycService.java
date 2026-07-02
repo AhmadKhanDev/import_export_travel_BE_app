@@ -4,13 +4,19 @@ import com.marketplace.admin.dto.AdminKycResponse;
 import com.marketplace.common.audit.AuditAction;
 import com.marketplace.common.audit.service.AuditLogService;
 import com.marketplace.common.exception.BadRequestException;
+import com.marketplace.common.exception.ConflictException;
 import com.marketplace.common.exception.InvalidStatusException;
 import com.marketplace.common.exception.ResourceNotFoundException;
+import com.marketplace.kyc.dto.KycResponse;
+import com.marketplace.kyc.dto.KycSubmitRequest;
 import com.marketplace.kyc.entity.KycDocument;
 import com.marketplace.kyc.entity.KycStatus;
 import com.marketplace.kyc.mapper.KycMapper;
 import com.marketplace.kyc.repository.KycDocumentRepository;
 import com.marketplace.notification.service.NotificationService;
+import com.marketplace.user.entity.Role;
+import com.marketplace.user.entity.User;
+import com.marketplace.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -18,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -29,6 +36,51 @@ public class KycService {
     private final KycMapper kycMapper;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final UserRepository userRepository;
+
+    @Transactional
+    public KycResponse submit(UUID userId, KycSubmitRequest request) {
+        KycDocument document = kycDocumentRepository.findFirstByUser_Id(userId).orElse(null);
+
+        if (document != null) {
+            if (document.getStatus() == KycStatus.PENDING_REVIEW) {
+                throw new ConflictException("You already have a KYC submission pending review");
+            }
+            if (document.getStatus() == KycStatus.APPROVED) {
+                throw new ConflictException("Your KYC is already approved");
+            }
+        } else {
+            document = new KycDocument();
+            document.setId(UUID.randomUUID());
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            document.setUser(user);
+        }
+
+        document.setStatus(KycStatus.PENDING_REVIEW);
+        document = kycDocumentRepository.save(document);
+
+        auditLogService.log(AuditAction.KYC_SUBMITTED, "KYC", document.getId(), userId,
+                "documentType=" + request.getDocumentType());
+
+        UUID kycId = document.getId();
+        userRepository.findByRole(Role.ADMIN)
+                .forEach(admin -> notificationService.notifyKycSubmitted(admin.getId(), kycId));
+
+        log.info("Traveller submitted KYC: kycId={}, userId={}", kycId, userId);
+        return kycMapper.toResponse(document);
+    }
+
+    @Transactional(readOnly = true)
+    public KycResponse getMyKyc(UUID userId) {
+        return kycDocumentRepository.findFirstByUser_Id(userId)
+                .map(kycMapper::toResponse)
+                .orElseGet(() -> KycResponse.builder()
+                        .id(null)
+                        .userId(userId)
+                        .status(KycStatus.NOT_SUBMITTED)
+                        .build());
+    }
 
     @Transactional(readOnly = true)
     public void requireApprovedKyc(UUID userId) {

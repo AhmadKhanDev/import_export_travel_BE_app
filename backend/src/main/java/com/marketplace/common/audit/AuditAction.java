@@ -13,6 +13,7 @@ public final class AuditAction {
     public static final String ADMIN_BOOKING_CANCELLED = "ADMIN_BOOKING_CANCELLED";
     public static final String ADMIN_PAYMENT_RELEASED = "ADMIN_PAYMENT_RELEASED";
     public static final String ADMIN_PAYMENT_REFUNDED = "ADMIN_PAYMENT_REFUNDED";
+    public static final String KYC_SUBMITTED = "KYC_SUBMITTED";
     public static final String ADMIN_KYC_APPROVED = "ADMIN_KYC_APPROVED";
     public static final String ADMIN_KYC_REJECTED = "ADMIN_KYC_REJECTED";
     public static final String ADMIN_DISPUTE_UNDER_REVIEW = "ADMIN_DISPUTE_UNDER_REVIEW";
