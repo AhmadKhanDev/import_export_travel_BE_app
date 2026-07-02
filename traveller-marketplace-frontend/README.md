@@ -161,3 +161,42 @@ src/
   main.tsx       - App entry point
   index.css      - Global styles with Tailwind
 ```
+
+---
+
+## End-to-End Testing
+
+A complete testing guide covering every feature, screen, API call, expected result, and troubleshooting tip is available:
+
+- **Markdown guide:** [`../docs/end-to-end-testing-guide.md`](../docs/end-to-end-testing-guide.md)
+- **Word document:** [`../Traveller_Buyer_Marketplace_End_To_End_Testing_Guide.docx`](../Traveller_Buyer_Marketplace_End_To_End_Testing_Guide.docx)
+
+The guide covers:
+
+| Section | What it explains |
+|---------|-----------------|
+| Project Overview | Full business flow diagram |
+| Roles | BUYER, TRAVELLER, ADMIN capabilities |
+| Before Testing | Prerequisites, how to start services |
+| Test Users | How to create buyer, traveller, and admin accounts |
+| Happy Path | All 20 steps from register to payment release |
+| Auth Testing | Register, login, logout, token refresh, role redirect |
+| KYC Testing | Traveller KYC submission and admin approval |
+| Buyer Requests | Create, publish, cancel, delete requests |
+| Traveller Trips | Create, publish, cancel trips |
+| Matching | Generate and view matches, match scores |
+| Offers | Send, accept, reject offers |
+| Bookings | View, cancel bookings |
+| Payments | Pay, hold in escrow, release, refund |
+| Delivery | Generate code, mark in-transit, verify code |
+| Notifications | View, mark as read, unread count |
+| Chat | Send messages, read messages, unread count |
+| Reviews | Submit reviews, view rating summary |
+| Disputes | Raise, admin review, resolve |
+| Admin Panel | Dashboard, users, KYC, bookings, payments, disputes, audit logs |
+| Status Flows | All status transitions for every entity |
+| DevTools Guide | How to inspect API calls in browser |
+| DB Verification | SQL queries to check data after testing |
+| Checklist | 50+ checkboxes for a complete test run |
+| Troubleshooting | Common errors and how to fix them |
+| Test Report | Template for documenting test results |
