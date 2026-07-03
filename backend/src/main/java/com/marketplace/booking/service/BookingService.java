@@ -19,6 +19,7 @@ import com.marketplace.listing.repository.BuyerRequestRepository;
 import com.marketplace.notification.entity.NotificationReferenceType;
 import com.marketplace.notification.entity.NotificationType;
 import com.marketplace.notification.service.NotificationService;
+import com.marketplace.verification.service.DeliveryVerificationService;
 import com.marketplace.user.entity.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -54,6 +55,7 @@ public class BookingService {
     private final BuyerRequestRepository buyerRequestRepository;
     private final BookingMapper bookingMapper;
     private final NotificationService notificationService;
+    private final DeliveryVerificationService deliveryVerificationService;
 
     @Transactional(readOnly = true)
     public Page<BookingResponse> findMyBookings(UUID userId, BookingStatus status, Pageable pageable) {
@@ -134,13 +136,7 @@ public class BookingService {
         booking.setStatus(BookingStatus.DELIVERED_PENDING_VERIFICATION);
         booking.setDeliveredAt(Instant.now());
         booking = bookingRepository.save(booking);
-        notificationService.notifyUser(
-                booking.getBuyer().getId(),
-                NotificationType.SYSTEM_ALERT,
-                "Delivery pending verification",
-                "Traveller marked your booking as delivered. Generate or share the verification code.",
-                NotificationReferenceType.BOOKING,
-                booking.getId());
+        deliveryVerificationService.ensureActiveCodeForBooking(bookingId);
         return bookingMapper.toResponse(booking);
     }
 

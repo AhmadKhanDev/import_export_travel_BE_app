@@ -5,6 +5,17 @@ import type {
   CreateBuyerRequestRequest,
   UpdateBuyerRequestRequest,
 } from "@/types/listing";
+import { toApiInstant } from "@/utils/formatters";
+
+function mapBuyerRequestPayload(
+  data: CreateBuyerRequestRequest | UpdateBuyerRequestRequest,
+) {
+  const { currency: _currency, travellersReward: _reward, deadlineDate, ...rest } = data;
+  return {
+    ...rest,
+    ...(deadlineDate ? { neededBefore: toApiInstant(deadlineDate) } : {}),
+  };
+}
 
 interface SearchParams {
   sourceCountry?: string;
@@ -27,7 +38,10 @@ function buildQuery(params: Record<string, string | number | undefined>): string
 
 export const buyerRequestApi = {
   create: (data: CreateBuyerRequestRequest) =>
-    axiosClient.post<ApiResponse<BuyerRequestResponse>>("/buyer-requests", data),
+    axiosClient.post<ApiResponse<BuyerRequestResponse>>(
+      "/buyer-requests",
+      mapBuyerRequestPayload(data),
+    ),
 
   search: (params: SearchParams = {}) =>
     axiosClient.get<ApiResponse<PagedResponse<BuyerRequestResponse>>>(
@@ -43,7 +57,10 @@ export const buyerRequestApi = {
     axiosClient.get<ApiResponse<BuyerRequestResponse>>(`/buyer-requests/${id}`),
 
   update: (id: string, data: UpdateBuyerRequestRequest) =>
-    axiosClient.put<ApiResponse<BuyerRequestResponse>>(`/buyer-requests/${id}`, data),
+    axiosClient.put<ApiResponse<BuyerRequestResponse>>(
+      `/buyer-requests/${id}`,
+      mapBuyerRequestPayload(data),
+    ),
 
   delete: (id: string) =>
     axiosClient.delete<ApiResponse<null>>(`/buyer-requests/${id}`),

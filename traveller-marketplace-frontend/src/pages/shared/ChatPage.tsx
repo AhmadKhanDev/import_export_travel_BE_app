@@ -52,7 +52,8 @@ export function ChatPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: (content: string) => chatApi.sendMessage(selectedRoomId!, { content }),
+    mutationFn: (content: string) =>
+      chatApi.sendMessage(selectedRoomId!, { message: content, messageType: "TEXT" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["chat-messages", selectedRoomId] });
       setMessage("");
@@ -119,7 +120,7 @@ export function ChatPage() {
                 return (
                   <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-xs rounded-2xl px-4 py-2 ${isMe ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-800"}`}>
-                      <p className="text-sm">{msg.content}</p>
+                      <p className="text-sm">{msg.message}</p>
                       <p className={`mt-0.5 text-[10px] ${isMe ? "text-white/60" : "text-gray-400"}`}>
                         {formatDateTime(msg.sentAt)}
                       </p>

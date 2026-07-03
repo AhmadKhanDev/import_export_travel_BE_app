@@ -28,7 +28,6 @@ public class CreateOfferRequest {
 
     private UUID matchId;
 
-    @NotNull(message = "Item price is required")
     @DecimalMin(value = "0.0", inclusive = true, message = "Item price must be zero or positive")
     private BigDecimal itemPrice;
 
@@ -36,7 +35,6 @@ public class CreateOfferRequest {
     @Positive(message = "Traveller fee must be positive")
     private BigDecimal travellerFee;
 
-    @NotNull(message = "Platform fee is required")
     @DecimalMin(value = "0.0", inclusive = true, message = "Platform fee must be zero or positive")
     private BigDecimal platformFee;
 

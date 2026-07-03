@@ -14,6 +14,9 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { PageLoader } from "@/components/ui/LoadingSpinner";
 import { formatDate, formatMoney } from "@/utils/formatters";
 import { getErrorMessage } from "@/api/apiErrorHandler";
+import { getDeliveryCode, saveDeliveryCode } from "@/utils/deliveryCodeStorage";
+
+const BUYER_GENERATE_STATUSES = ["PAYMENT_HELD", "IN_TRANSIT", "DELIVERED_PENDING_VERIFICATION"];
 
 export function BookingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +25,9 @@ export function BookingDetailPage() {
   const { user } = useAuth();
   const [error, setError] = useState("");
   const [confirmPay, setConfirmPay] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(
+    id ? getDeliveryCode(id) : null,
+  );
 
   const { data: booking, isLoading } = useQuery({
     queryKey: ["booking", id],
@@ -43,7 +49,14 @@ export function BookingDetailPage() {
 
   const generateCodeMutation = useMutation({
     mutationFn: () => deliveryApi.generate(id!),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["delivery-status", id] }),
+    onSuccess: (res) => {
+      const code = res.data.data.code;
+      setGeneratedCode(code);
+      if (id) saveDeliveryCode(id, code);
+      qc.invalidateQueries({ queryKey: ["delivery-status", id] });
+      qc.invalidateQueries({ queryKey: ["my-notifications"] });
+      qc.invalidateQueries({ queryKey: ["unread-count"] });
+    },
     onError: (err) => setError(getErrorMessage(err)),
   });
 
@@ -70,6 +83,8 @@ export function BookingDetailPage() {
 
   const isBuyer = user?.id === booking.buyerId;
   const isTraveller = user?.id === booking.travellerId;
+  const hasActiveCode = deliveryStatus?.hasActiveCode ?? false;
+  const displayCode = hasActiveCode ? generatedCode : null;
 
   const steps = [
     { label: "Accepted", statuses: ["ACCEPTED"] },
@@ -174,15 +189,38 @@ export function BookingDetailPage() {
               Pay Now
             </Button>
           )}
-          {isBuyer && booking.status === "PAYMENT_HELD" && !deliveryStatus?.codeGenerated && (
+          {isBuyer && BUYER_GENERATE_STATUSES.includes(booking.status) && !hasActiveCode && (
             <Button icon={<Key size={15} />} onClick={() => generateCodeMutation.mutate()} loading={generateCodeMutation.isPending}>
               Generate Delivery Code
             </Button>
           )}
-          {isBuyer && booking.status === "PAYMENT_HELD" && deliveryStatus?.codeGenerated && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-              <p className="text-sm font-medium text-emerald-800">Delivery code generated. Share with traveller to verify.</p>
+          {isBuyer && BUYER_GENERATE_STATUSES.includes(booking.status) && hasActiveCode && displayCode && (
+            <div className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Your delivery code</p>
+              <p className="mt-1 text-2xl font-bold tracking-[0.25em] text-emerald-900">{displayCode}</p>
+              <p className="mt-1 text-sm text-emerald-800">Share with the traveller. Also sent to your notifications.</p>
             </div>
+          )}
+          {isBuyer && BUYER_GENERATE_STATUSES.includes(booking.status) && hasActiveCode && !displayCode && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-sm font-medium text-emerald-800">
+                Delivery code is active. Check your notifications for the 6-digit code.
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-2"
+                onClick={() => generateCodeMutation.mutate()}
+                loading={generateCodeMutation.isPending}
+              >
+                Generate New Code
+              </Button>
+            </div>
+          )}
+          {isBuyer && BUYER_GENERATE_STATUSES.includes(booking.status) && (
+            <Button variant="outline" onClick={() => navigate(`/shared/delivery/${id}`)}>
+              Delivery Verification
+            </Button>
           )}
 
           {/* Traveller actions */}

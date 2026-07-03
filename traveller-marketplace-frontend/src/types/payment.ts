@@ -24,14 +24,23 @@ export interface GenerateDeliveryCodeResponse {
 }
 
 export interface DeliveryVerificationResultResponse {
-  verified: boolean;
   bookingId: string;
+  paymentId?: string;
+  codeStatus?: DeliveryCodeStatus;
+  bookingStatus?: string;
+  paymentStatus?: string;
+  verifiedAt?: string;
+  paymentReleasedAt?: string;
   message?: string;
 }
 
+export type DeliveryCodeStatus = "ACTIVE" | "USED" | "EXPIRED";
+
 export interface DeliveryCodeStatusResponse {
   bookingId: string;
-  codeGenerated: boolean;
-  verified: boolean;
-  attemptsUsed?: number;
+  hasActiveCode: boolean;
+  status?: DeliveryCodeStatus;
+  expiresAt?: string;
+  verifiedAt?: string;
+  createdAt?: string;
 }

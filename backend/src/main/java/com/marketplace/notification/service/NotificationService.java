@@ -245,8 +245,8 @@ public class NotificationService {
     @Transactional
     public void notifyDeliveryCodeGenerated(UUID buyerUserId, UUID bookingId, String code) {
         notifyUser(buyerUserId, NotificationType.DELIVERY_CODE_GENERATED,
-                "Delivery code generated",
-                "Your delivery verification code is " + code + ". In production this should only be sent to the buyer.",
+                "Your delivery code: " + code,
+                "Share this 6-digit code with the traveller when they deliver your item: " + code,
                 NotificationReferenceType.DELIVERY_CODE, bookingId);
     }
 

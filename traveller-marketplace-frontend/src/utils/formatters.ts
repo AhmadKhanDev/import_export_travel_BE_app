@@ -1,3 +1,10 @@
+/** Convert an HTML date input value (yyyy-MM-dd) to an ISO Instant string for the backend. */
+export function toApiInstant(dateStr: string | undefined | null): string | undefined {
+  if (!dateStr) return undefined;
+  if (dateStr.includes("T")) return dateStr;
+  return `${dateStr}T00:00:00.000Z`;
+}
+
 export function formatDate(dateStr: string | undefined | null): string {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-GB", {

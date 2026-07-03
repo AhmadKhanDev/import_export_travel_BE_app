@@ -5,6 +5,16 @@ import type {
   TravellerTripResponse,
   UpdateTravellerTripRequest,
 } from "@/types/listing";
+import { toApiInstant } from "@/utils/formatters";
+
+function mapTripPayload(data: CreateTravellerTripRequest | UpdateTravellerTripRequest) {
+  const { notes, returnDate: _returnDate, travelDate, ...rest } = data;
+  return {
+    ...rest,
+    ...(travelDate ? { travelDate: toApiInstant(travelDate) } : {}),
+    ...(notes !== undefined ? { allowedItemTypes: notes || undefined } : {}),
+  };
+}
 
 interface SearchParams {
   sourceCountry?: string;
@@ -28,7 +38,7 @@ function buildQuery(params: Record<string, string | number | undefined>): string
 
 export const travellerTripApi = {
   create: (data: CreateTravellerTripRequest) =>
-    axiosClient.post<ApiResponse<TravellerTripResponse>>("/traveller-trips", data),
+    axiosClient.post<ApiResponse<TravellerTripResponse>>("/traveller-trips", mapTripPayload(data)),
 
   search: (params: SearchParams = {}) =>
     axiosClient.get<ApiResponse<PagedResponse<TravellerTripResponse>>>(
@@ -44,7 +54,7 @@ export const travellerTripApi = {
     axiosClient.get<ApiResponse<TravellerTripResponse>>(`/traveller-trips/${id}`),
 
   update: (id: string, data: UpdateTravellerTripRequest) =>
-    axiosClient.put<ApiResponse<TravellerTripResponse>>(`/traveller-trips/${id}`, data),
+    axiosClient.put<ApiResponse<TravellerTripResponse>>(`/traveller-trips/${id}`, mapTripPayload(data)),
 
   delete: (id: string) =>
     axiosClient.delete<ApiResponse<null>>(`/traveller-trips/${id}`),

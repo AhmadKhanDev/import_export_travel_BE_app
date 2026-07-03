@@ -42,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
@@ -53,6 +54,7 @@ import java.util.UUID;
 public class OfferService {
 
     private static final String DEFAULT_CURRENCY = "PKR";
+    private static final BigDecimal PLATFORM_FEE_RATE = new BigDecimal("0.10");
     private static final Set<BuyerRequestStatus> ELIGIBLE_BUYER_REQUEST_STATUSES = EnumSet.of(
             BuyerRequestStatus.PUBLISHED, BuyerRequestStatus.MATCHED);
     private static final Set<TravellerTripStatus> ELIGIBLE_TRIP_STATUSES = EnumSet.of(
@@ -93,9 +95,17 @@ public class OfferService {
         String currency = request.getCurrency() != null && !request.getCurrency().isBlank()
                 ? request.getCurrency().trim().toUpperCase()
                 : DEFAULT_CURRENCY;
-        BigDecimal totalAmount = request.getItemPrice()
-                .add(request.getTravellerFee())
-                .add(request.getPlatformFee());
+
+        BigDecimal itemPrice = request.getItemPrice() != null
+                ? request.getItemPrice()
+                : (buyerRequest.getEstimatedItemPrice() != null
+                        ? buyerRequest.getEstimatedItemPrice()
+                        : BigDecimal.ZERO);
+        BigDecimal travellerFee = request.getTravellerFee();
+        BigDecimal platformFee = request.getPlatformFee() != null
+                ? request.getPlatformFee()
+                : itemPrice.add(travellerFee).multiply(PLATFORM_FEE_RATE).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalAmount = itemPrice.add(travellerFee).add(platformFee);
 
         Offer offer = Offer.builder()
                 .id(UUID.randomUUID())
@@ -104,9 +114,9 @@ public class OfferService {
                 .match(match)
                 .traveller(travellerTrip.getTraveller())
                 .buyer(buyerRequest.getBuyer())
-                .itemPrice(request.getItemPrice())
-                .travellerFee(request.getTravellerFee())
-                .platformFee(request.getPlatformFee())
+                .itemPrice(itemPrice)
+                .travellerFee(travellerFee)
+                .platformFee(platformFee)
                 .totalAmount(totalAmount)
                 .currency(currency)
                 .message(request.getMessage())

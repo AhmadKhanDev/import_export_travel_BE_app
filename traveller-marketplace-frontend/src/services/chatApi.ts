@@ -14,18 +14,24 @@ export interface ChatRoomResponse {
   createdAt: string;
 }
 
+export type MessageType = "TEXT" | "IMAGE" | "SYSTEM";
+
 export interface ChatMessageResponse {
   id: string;
-  roomId: string;
+  chatRoomId: string;
   senderId: string;
   senderName: string;
-  content: string;
+  message: string;
+  messageType: MessageType;
+  attachmentUrl?: string;
   readAt?: string;
   sentAt: string;
 }
 
 export interface SendMessageRequest {
-  content: string;
+  message: string;
+  messageType: MessageType;
+  attachmentUrl?: string;
 }
 
 export const chatApi = {

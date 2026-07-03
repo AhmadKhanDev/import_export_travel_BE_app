@@ -42,7 +42,8 @@ public class DeliveryVerificationService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Set<BookingStatus> GENERATE_ALLOWED_STATUSES = EnumSet.of(
             BookingStatus.PAYMENT_HELD,
-            BookingStatus.IN_TRANSIT
+            BookingStatus.IN_TRANSIT,
+            BookingStatus.DELIVERED_PENDING_VERIFICATION
     );
     private static final Set<BookingStatus> VERIFY_ALLOWED_STATUSES = EnumSet.of(
             BookingStatus.PAYMENT_HELD,
@@ -100,6 +101,28 @@ public class DeliveryVerificationService {
                 .createdAt(entity.getCreatedAt())
                 .message("Delivery code generated. In production this should be sent only to the buyer via notification.")
                 .build();
+    }
+
+    @Transactional
+    public void ensureActiveCodeForBooking(UUID bookingId) {
+        Booking booking = getBooking(bookingId);
+        if (!GENERATE_ALLOWED_STATUSES.contains(booking.getStatus())) {
+            return;
+        }
+        try {
+            assertPaymentHeld(bookingId);
+        } catch (BadRequestException ex) {
+            log.warn("Skipping auto delivery code for bookingId={}: {}", bookingId, ex.getMessage());
+            return;
+        }
+
+        Optional<DeliveryVerificationCode> activeCode =
+                codeRepository.findByBooking_IdAndStatus(bookingId, DeliveryCodeStatus.ACTIVE);
+        if (activeCode.isPresent() && activeCode.get().getExpiresAt().isAfter(Instant.now())) {
+            return;
+        }
+
+        generateCode(bookingId, booking.getBuyer().getId());
     }
 
     @Transactional
@@ -175,9 +198,14 @@ public class DeliveryVerificationService {
             return mapper.toStatusResponse(code, true);
         }
 
-        DeliveryVerificationCode latest = codeRepository.findTopByBooking_IdOrderByCreatedAtDesc(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("No active delivery verification code found"));
-        return mapper.toStatusResponse(latest, false);
+        Optional<DeliveryVerificationCode> latest = codeRepository.findTopByBooking_IdOrderByCreatedAtDesc(bookingId);
+        if (latest.isEmpty()) {
+            return DeliveryCodeStatusResponse.builder()
+                    .bookingId(bookingId)
+                    .hasActiveCode(false)
+                    .build();
+        }
+        return mapper.toStatusResponse(latest.get(), false);
     }
 
     @Transactional
@@ -193,7 +221,7 @@ public class DeliveryVerificationService {
         codeRepository.findByBooking_IdAndStatus(bookingId, DeliveryCodeStatus.ACTIVE)
                 .ifPresent(code -> {
                     code.setStatus(DeliveryCodeStatus.EXPIRED);
-                    codeRepository.save(code);
+                    codeRepository.saveAndFlush(code);
                 });
     }
 
