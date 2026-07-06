@@ -9,9 +9,11 @@ export interface ChatRoomResponse {
   travellerId: string;
   travellerName: string;
   status: string;
+  lastMessage?: string;
   unreadCount?: number;
   lastMessageAt?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type MessageType = "TEXT" | "IMAGE" | "SYSTEM";

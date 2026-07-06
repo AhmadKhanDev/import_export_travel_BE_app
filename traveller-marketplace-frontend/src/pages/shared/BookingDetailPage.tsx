@@ -1,22 +1,73 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CreditCard, Truck, CheckCircle, Key, MessageSquare } from "lucide-react";
+import {
+  CreditCard,
+  Truck,
+  CheckCircle,
+  Key,
+  MessageSquare,
+  LocateFixed,
+  Square,
+} from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { bookingApi } from "@/services/bookingApi";
 import { paymentApi } from "@/services/paymentApi";
 import { deliveryApi } from "@/services/deliveryApi";
+import { trackingApi } from "@/services/trackingApi";
+import { createRealtimeSocketClient, type RealtimeEvent } from "@/services/realtimeSocket";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
+import { TrackingMapCard } from "@/components/common/TrackingMapCard";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { PageLoader } from "@/components/ui/LoadingSpinner";
-import { formatDate, formatMoney } from "@/utils/formatters";
+import { formatDate, formatDateTime, formatMoney } from "@/utils/formatters";
 import { getErrorMessage } from "@/api/apiErrorHandler";
 import { getDeliveryCode, saveDeliveryCode } from "@/utils/deliveryCodeStorage";
+import type { TrackingLocationUpdateRequest, TrackingSessionResponse } from "@/types/tracking";
 
 const BUYER_GENERATE_STATUSES = ["PAYMENT_HELD", "IN_TRANSIT", "DELIVERED_PENDING_VERIFICATION"];
+const TRACKING_BOOKING_STATUSES = ["PAYMENT_HELD", "IN_TRANSIT", "DELIVERED_PENDING_VERIFICATION"];
+
+function toTrackingPayload(position: GeolocationPosition): TrackingLocationUpdateRequest {
+  const heading =
+    typeof position.coords.heading === "number" && Number.isFinite(position.coords.heading)
+      ? position.coords.heading
+      : undefined;
+  const speedKph =
+    typeof position.coords.speed === "number" && Number.isFinite(position.coords.speed)
+      ? Number(position.coords.speed) * 3.6
+      : undefined;
+
+  return {
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    accuracyMeters: position.coords.accuracy,
+    headingDegrees: heading,
+    speedKph,
+  };
+}
+
+function getCurrentLocation(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!("geolocation" in navigator)) {
+      reject(new Error("This device does not support live location sharing."));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      resolve,
+      reject,
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 15000,
+      },
+    );
+  });
+}
 
 export function BookingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,10 +75,14 @@ export function BookingDetailPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [error, setError] = useState("");
+  const [trackingNotice, setTrackingNotice] = useState("");
   const [confirmPay, setConfirmPay] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(
     id ? getDeliveryCode(id) : null,
   );
+  const [liveTracking, setLiveTracking] = useState<TrackingSessionResponse | null>(null);
+  const lastTrackingSentAtRef = useRef(0);
+  const trackingStopRequestedRef = useRef(false);
 
   const { data: booking, isLoading } = useQuery({
     queryKey: ["booking", id],
@@ -40,6 +95,16 @@ export function BookingDetailPage() {
     queryFn: () => deliveryApi.getStatus(id!).then((r) => r.data.data),
     enabled: !!id && !!booking,
   });
+
+  const { data: tracking } = useQuery({
+    queryKey: ["booking-tracking", id],
+    queryFn: () => trackingApi.getState(id!).then((r) => r.data.data),
+    enabled: !!id && !!booking && !!user,
+  });
+
+  useEffect(() => {
+    setLiveTracking(tracking ?? null);
+  }, [tracking]);
 
   const payMutation = useMutation({
     mutationFn: () => paymentApi.pay(id!),
@@ -78,6 +143,133 @@ export function BookingDetailPage() {
     onError: (err) => setError(getErrorMessage(err)),
   });
 
+  const startTrackingMutation = useMutation({
+    mutationFn: async () => {
+      let position: GeolocationPosition;
+      try {
+        position = await getCurrentLocation();
+      } catch (err) {
+        const geoError = err as GeolocationPositionError | Error;
+        if ("code" in geoError && geoError.code === geoError.PERMISSION_DENIED) {
+          throw new Error("Location permission was denied. Enable it to share live tracking.");
+        }
+        if ("code" in geoError && geoError.code === geoError.TIMEOUT) {
+          throw new Error("Timed out while trying to get your location. Please try again.");
+        }
+        throw new Error(
+          geoError instanceof Error
+            ? geoError.message
+            : "Unable to read your current location.",
+        );
+      }
+
+      await trackingApi.start(id!);
+
+      try {
+        return await trackingApi.updateLocation(id!, toTrackingPayload(position));
+      } catch (err) {
+        try {
+          await trackingApi.stop(id!);
+        } catch {
+          // Ignore cleanup failure and surface the original location update error.
+        }
+        throw err;
+      }
+    },
+    onSuccess: (res) => {
+      setTrackingNotice("");
+      trackingStopRequestedRef.current = false;
+      setLiveTracking(res.data.data);
+      qc.setQueryData(["booking-tracking", id], res.data.data);
+    },
+    onError: (err) => setTrackingNotice(getErrorMessage(err)),
+  });
+
+  const stopTrackingMutation = useMutation({
+    mutationFn: () => trackingApi.stop(id!),
+    onSuccess: (res) => {
+      trackingStopRequestedRef.current = false;
+      setLiveTracking(res.data.data);
+      qc.setQueryData(["booking-tracking", id], res.data.data);
+    },
+    onError: (err) => setError(getErrorMessage(err)),
+  });
+
+  useEffect(() => {
+    if (!id || !user) return;
+
+    const socket = createRealtimeSocketClient();
+    const unsubscribe = socket.subscribe(
+      { channel: "tracking-booking", bookingId: id },
+      (event: RealtimeEvent<TrackingSessionResponse>) => {
+        setLiveTracking(event.payload);
+        qc.setQueryData(["booking-tracking", id], event.payload);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [id, qc, user]);
+
+  const currentTracking = liveTracking ?? tracking ?? null;
+
+  useEffect(() => {
+    if (!id || !booking || !currentTracking?.active) return;
+    if (user?.id !== booking.travellerId) return;
+
+    if (!("geolocation" in navigator)) {
+      setTrackingNotice("This device does not support live location sharing.");
+      if (!trackingStopRequestedRef.current) {
+        trackingStopRequestedRef.current = true;
+        trackingApi.stop(id).then((res) => {
+          setLiveTracking(res.data.data);
+          qc.setQueryData(["booking-tracking", id], res.data.data);
+        });
+      }
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const now = Date.now();
+        if (now - lastTrackingSentAtRef.current < 5000) return;
+        lastTrackingSentAtRef.current = now;
+        setTrackingNotice("");
+        trackingApi.updateLocation(id, toTrackingPayload(position)).catch((err) => {
+          setTrackingNotice(getErrorMessage(err));
+        });
+      },
+      (geoError) => {
+        if (geoError.code === geoError.PERMISSION_DENIED) {
+          setTrackingNotice("Location permission was denied. Live tracking was turned off.");
+          if (!trackingStopRequestedRef.current) {
+            trackingStopRequestedRef.current = true;
+            trackingApi.stop(id).then((res) => {
+              setLiveTracking(res.data.data);
+              qc.setQueryData(["booking-tracking", id], res.data.data);
+            });
+          }
+          return;
+        }
+        if (geoError.code === geoError.TIMEOUT) {
+          setTrackingNotice("Timed out while trying to get your location. We'll keep trying.");
+          return;
+        }
+        setTrackingNotice("Unable to read the traveller's current location on this device.");
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 15000,
+      },
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [booking, currentTracking?.active, id, qc, user?.id]);
+
   if (isLoading) return <PageLoader />;
   if (!booking) return <ErrorMessage message="Booking not found" />;
 
@@ -85,6 +277,7 @@ export function BookingDetailPage() {
   const isTraveller = user?.id === booking.travellerId;
   const hasActiveCode = deliveryStatus?.hasActiveCode ?? false;
   const displayCode = hasActiveCode ? generatedCode : null;
+  const canShowTracking = TRACKING_BOOKING_STATUSES.includes(booking.status) || !!currentTracking?.hasLocation;
 
   const steps = [
     { label: "Accepted", statuses: ["ACCEPTED"] },
@@ -179,6 +372,14 @@ export function BookingDetailPage() {
         </div>
       </Card>
 
+      {/* Live tracking */}
+      {canShowTracking && currentTracking && (
+        <TrackingMapCard
+          tracking={currentTracking}
+          viewerLabel={isBuyer ? "buyer" : isTraveller ? "traveller" : "admin"}
+        />
+      )}
+
       {/* Actions */}
       <Card>
         <CardHeader><CardTitle>Actions</CardTitle></CardHeader>
@@ -239,6 +440,25 @@ export function BookingDetailPage() {
               Verify Delivery Code
             </Button>
           )}
+          {isTraveller && currentTracking?.shareable && !currentTracking.active && (
+            <Button
+              icon={<LocateFixed size={15} />}
+              onClick={() => startTrackingMutation.mutate()}
+              loading={startTrackingMutation.isPending}
+            >
+              Start Live Tracking
+            </Button>
+          )}
+          {isTraveller && currentTracking?.shareable && currentTracking.active && (
+            <Button
+              variant="outline"
+              icon={<Square size={15} />}
+              onClick={() => stopTrackingMutation.mutate()}
+              loading={stopTrackingMutation.isPending}
+            >
+              Stop Live Tracking
+            </Button>
+          )}
 
           {/* Chat */}
           {["PAYMENT_HELD", "IN_TRANSIT", "DELIVERED_PENDING_VERIFICATION"].includes(booking.status) && (
@@ -254,6 +474,14 @@ export function BookingDetailPage() {
             </Button>
           )}
         </div>
+        {isTraveller && trackingNotice && (
+          <ErrorMessage message={trackingNotice} type="warning" className="mt-4" />
+        )}
+        {currentTracking?.active && currentTracking.lastLocationAt && (
+          <p className="mt-4 text-xs text-gray-500">
+            Latest location update: {formatDateTime(currentTracking.lastLocationAt)}
+          </p>
+        )}
       </Card>
 
       <ConfirmDialog

@@ -26,6 +26,7 @@ import com.marketplace.common.security.UserPrincipal;
 import com.marketplace.common.audit.AuditAction;
 import com.marketplace.common.audit.service.AuditLogService;
 import com.marketplace.notification.service.NotificationService;
+import com.marketplace.realtime.service.RealtimeEventPublisher;
 import com.marketplace.user.entity.Role;
 import com.marketplace.user.entity.User;
 import com.marketplace.user.repository.UserRepository;
@@ -62,6 +63,7 @@ public class ChatService {
     private final ChatMapper chatMapper;
     private final NotificationService notificationService;
     private final AuditLogService auditLogService;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Transactional
     public ChatRoomResponse createOrGetRoom(UUID bookingId, UUID userId) {
@@ -129,9 +131,11 @@ public class ChatService {
         UUID receiverId = resolveReceiverId(room, senderId);
         notificationService.notifyNewChatMessage(receiverId, sender.getFullName(), room.getBooking().getId(), room.getId());
 
+        ChatMessageResponse response = chatMapper.toMessageResponse(message);
+        publishRoomRealtimeEvents(room, response);
         log.info("Chat message sent: roomId={}, senderId={}, messageType={}", roomId, senderId, request.getMessageType());
 
-        return chatMapper.toMessageResponse(message);
+        return response;
     }
 
     @Transactional
@@ -140,6 +144,7 @@ public class ChatService {
         assertRoomParticipant(room, userId);
 
         int updated = chatMessageRepository.markUnreadAsRead(roomId, userId, Instant.now());
+        publishRoomSnapshots(room);
         log.debug("Marked {} messages as read in room {} for user {}", updated, roomId, userId);
         return MarkReadResponse.builder().updatedCount(updated).build();
     }
@@ -161,6 +166,7 @@ public class ChatService {
         room.setStatus(ChatRoomStatus.CLOSED);
         room = chatRoomRepository.save(room);
         saveSystemMessage(room, "Chat room has been closed by an administrator.");
+        publishRoomSnapshots(room);
         auditLogService.logAdminAction(AuditAction.ADMIN_CHAT_CLOSED, "CHAT_ROOM", roomId,
                 "bookingId=" + room.getBooking().getId());
         log.info("Chat room closed: roomId={}, bookingId={}", roomId, room.getBooking().getId());
@@ -202,6 +208,7 @@ public class ChatService {
         }
 
         saveSystemMessage(room, messageText.trim());
+        publishRoomSnapshots(room);
     }
 
     private ChatRoom createRoomFromBooking(Booking booking) {
@@ -229,6 +236,22 @@ public class ChatService {
 
         room.setUpdatedAt(now);
         chatRoomRepository.save(room);
+    }
+
+    private void publishRoomRealtimeEvents(ChatRoom room, ChatMessageResponse messageResponse) {
+        realtimeEventPublisher.publishChatMessage(room.getId(), messageResponse);
+        publishRoomSnapshots(room);
+    }
+
+    private void publishRoomSnapshots(ChatRoom room) {
+        realtimeEventPublisher.publishChatRoomUpdate(
+                room.getBuyer().getId(),
+                room.getId(),
+                toRoomResponse(room, room.getBuyer().getId()));
+        realtimeEventPublisher.publishChatRoomUpdate(
+                room.getTraveller().getId(),
+                room.getId(),
+                toRoomResponse(room, room.getTraveller().getId()));
     }
 
     private ChatRoomResponse toRoomResponse(ChatRoom room, UUID viewerId) {

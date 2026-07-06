@@ -6,7 +6,12 @@ import { queryClient } from "./queryClient";
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <AppRoutes />

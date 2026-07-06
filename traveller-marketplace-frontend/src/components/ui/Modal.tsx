@@ -28,7 +28,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 overflow-y-auto p-4"
       role="dialog"
       aria-modal
     >
@@ -36,9 +36,10 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div
-        className={`relative w-full ${sizes[size]} rounded-2xl bg-white shadow-xl`}
-      >
+      <div className="relative flex min-h-full items-center justify-center py-4">
+        <div
+          className={`relative w-full ${sizes[size]} max-h-[calc(100vh-2rem)] overflow-hidden rounded-2xl bg-white shadow-xl`}
+        >
         {title && (
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <h2 className="text-base font-semibold text-gray-900">{title}</h2>
@@ -50,7 +51,8 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
             </button>
           </div>
         )}
-        <div className="p-6">{children}</div>
+          <div className="max-h-[calc(100vh-7rem)] overflow-y-auto p-6">{children}</div>
+        </div>
       </div>
     </div>
   );

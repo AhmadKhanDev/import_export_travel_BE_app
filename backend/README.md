@@ -146,6 +146,7 @@ docker compose down -v
 | `REDIS_PORT` | `6379` | Redis port |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka bootstrap servers |
 | `KAFKA_ENABLED` | `true` | Enable/disable Kafka publishing |
+| `SERVER_PORT` | `8080` | Backend HTTP port |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins |
 | `SPRING_PROFILES_ACTIVE` | `local` | Active Spring profile |
 
@@ -165,6 +166,12 @@ Run with a specific profile:
 
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+If port `8080` is already in use, stop stale dev processes first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ..\scripts\stop-dev-ports.ps1
 ```
 
 ---

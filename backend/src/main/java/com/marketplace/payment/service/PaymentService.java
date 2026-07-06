@@ -28,6 +28,7 @@ import com.marketplace.payment.provider.PaymentProviderReleaseRequest;
 import com.marketplace.payment.provider.PaymentProviderResult;
 import com.marketplace.payment.repository.PaymentRepository;
 import com.marketplace.payment.repository.PaymentSpecification;
+import com.marketplace.tracking.service.TrackingService;
 import com.marketplace.user.entity.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +65,7 @@ public class PaymentService {
     private final PaymentMapper paymentMapper;
     private final NotificationService notificationService;
     private final ChatService chatService;
+    private final TrackingService trackingService;
 
     @Transactional
     public PaymentResponse pay(UUID bookingId, UUID buyerId, PayRequest payRequest, String idempotencyKey) {
@@ -237,6 +239,7 @@ public class PaymentService {
         booking.setStatus(BookingStatus.COMPLETED);
         booking.setCompletedAt(now);
         bookingRepository.save(booking);
+        trackingService.stopTrackingSilently(booking.getId(), "BOOKING_COMPLETED");
 
         log.info("Payment released: paymentId={}, bookingId={}", payment.getId(), booking.getId());
         notificationService.notifyPaymentReleased(payment.getBuyer().getId(), payment.getTraveller().getId(), payment.getId());
@@ -277,6 +280,7 @@ public class PaymentService {
         booking.setStatus(BookingStatus.CANCELLED);
         booking.setCancelledAt(now);
         bookingRepository.save(booking);
+        trackingService.stopTrackingSilently(booking.getId(), "PAYMENT_REFUNDED");
 
         log.info("Payment refunded: paymentId={}, bookingId={}, reason={}", payment.getId(), booking.getId(), reason);
         notificationService.notifyPaymentRefunded(payment.getBuyer().getId(), payment.getTraveller().getId(), payment.getId());

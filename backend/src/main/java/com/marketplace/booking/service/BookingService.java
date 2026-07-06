@@ -19,6 +19,7 @@ import com.marketplace.listing.repository.BuyerRequestRepository;
 import com.marketplace.notification.entity.NotificationReferenceType;
 import com.marketplace.notification.entity.NotificationType;
 import com.marketplace.notification.service.NotificationService;
+import com.marketplace.tracking.service.TrackingService;
 import com.marketplace.verification.service.DeliveryVerificationService;
 import com.marketplace.user.entity.Role;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +57,7 @@ public class BookingService {
     private final BookingMapper bookingMapper;
     private final NotificationService notificationService;
     private final DeliveryVerificationService deliveryVerificationService;
+    private final TrackingService trackingService;
 
     @Transactional(readOnly = true)
     public Page<BookingResponse> findMyBookings(UUID userId, BookingStatus status, Pageable pageable) {
@@ -87,6 +89,7 @@ public class BookingService {
         booking.setStatus(BookingStatus.CANCELLED);
         booking.setCancelledAt(Instant.now());
         booking = bookingRepository.save(booking);
+        trackingService.stopTrackingSilently(booking.getId(), "BOOKING_CANCELLED");
 
         revertBuyerRequestIfAppropriate(booking.getBuyerRequest());
         notificationService.notifyUsers(

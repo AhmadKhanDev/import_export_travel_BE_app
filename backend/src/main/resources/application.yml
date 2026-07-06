@@ -61,7 +61,7 @@
         spring.json.trusted.packages: "com.marketplace.infrastructure.kafka.events"
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   error:
     include-message: always
     include-binding-errors: always
@@ -126,7 +126,7 @@ app:
       window-seconds: 60
 
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5174,http://localhost:5173,http://localhost:3000}
 
 springdoc:
   api-docs:

@@ -27,6 +27,7 @@ import com.marketplace.notification.service.NotificationService;
 import com.marketplace.payment.entity.Payment;
 import com.marketplace.payment.entity.PaymentStatus;
 import com.marketplace.payment.repository.PaymentRepository;
+import com.marketplace.tracking.service.TrackingService;
 import com.marketplace.user.entity.Role;
 import com.marketplace.user.entity.User;
 import com.marketplace.user.repository.UserRepository;
@@ -69,6 +70,7 @@ public class DisputeService {
     private final NotificationService notificationService;
     private final ChatService chatService;
     private final AuditLogService auditLogService;
+    private final TrackingService trackingService;
 
     @Transactional
     public DisputeResponse createDispute(CreateDisputeRequest request, UserPrincipal principal) {
@@ -102,6 +104,7 @@ public class DisputeService {
 
         booking.setStatus(BookingStatus.DISPUTED);
         bookingRepository.save(booking);
+        trackingService.stopTrackingSilently(booking.getId(), "BOOKING_DISPUTED");
 
         log.info("Dispute created: disputeId={}, bookingId={}, raisedByUserId={}, reason={}",
                 dispute.getId(), booking.getId(), raisedBy.getId(), request.getReason());

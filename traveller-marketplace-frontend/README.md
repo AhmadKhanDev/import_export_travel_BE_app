@@ -34,6 +34,7 @@ npm install
 The `.env` file is already pre-configured:
 
 ```env
+FRONTEND_PORT=5174
 VITE_API_BASE_URL=http://localhost:8080/api/v1
 ```
 
@@ -44,6 +45,12 @@ npm run dev
 ```
 
 Opens at http://localhost:5174
+
+If port `5174` is already in use, stop stale dev processes first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ..\scripts\stop-dev-ports.ps1
+```
 
 ### 5. Build for Production
 
